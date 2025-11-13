@@ -1,2 +1,13 @@
 dependency-check-report/
 scancode-report.json
+# .gitignore (root)
+.venv/
+venv/
+env/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+dist/
+build/
+artifacts/
+*.log
