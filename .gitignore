@@ -1,2 +1,8 @@
 repomix-output.xml
-repomix-output.xml
+# Python cache files
+__pycache__/
+*.pyc
+# Log files
+*.log
+# Temporary CI files
+ci.yml
