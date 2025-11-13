@@ -51,7 +51,7 @@
 |------|------|----------|---------|--------|
 | `tp1/README_TP1.md` | Markdown | 8 | Detailed TP1 walkthrough & gap analysis | ✅ Complete |
 
-**Deployment Time**: 5–10 minutes  
+**Deployment Time**: 5–10 minutes
 **Success Criteria**: UFW active, SSH hardened, auditd/fail2ban running, AIDE baseline created
 
 ---
@@ -82,7 +82,7 @@
 | `tp2/jenkins_security_hardening.md` | Markdown | 6 | Jenkins RBAC, credentials management, security policies | ✅ Complete |
 | `tp2/Jenkinsfile` | Groovy | 40 | Legacy TP2-only pipeline (superseded by consolidated) | ✅ Deprecated |
 
-**Deployment Time**: 10–15 minutes (including docker-compose startup)  
+**Deployment Time**: 10–15 minutes (including docker-compose startup)
 **Success Criteria**: SonarQube UP, scanners functional, Jenkins credentials configured
 
 ---
@@ -103,7 +103,7 @@
 | `tp3/harbor_install.md` | Markdown | 5 | Harbor registry setup (optional private registry) | ✅ Reference |
 | `tp3/README_TP3.md` | Markdown | 6 | TP3 overview & implementation guidance | ✅ Complete |
 
-**Deployment Time**: 5–10 minutes  
+**Deployment Time**: 5–10 minutes
 **Success Criteria**: Trivy scans without error, Cosign signs/verifies images, base images hardened
 
 ---
@@ -130,7 +130,7 @@
 | `tp4/license_scanning.md` | Markdown | 4 | License compliance scanning with ScanCode Toolkit | ✅ Reference |
 | `tp4/sonar_policy_notes.md` | Markdown | 5 | SonarQube policy implementation & customization | ✅ Complete |
 
-**Deployment Time**: 3–5 minutes  
+**Deployment Time**: 3–5 minutes
 **Success Criteria**: Quality gate enforces policy, pipeline blocks on violations, metrics tracked
 
 ---
@@ -165,7 +165,7 @@
 |------|------|----------|---------|--------|
 | `tp5/README_TP5.md` | Markdown | 7 | TP5 architecture & deployment guidance | ✅ Complete |
 
-**Deployment Time**: 5–10 minutes (Docker) + 2–5 min Falcosidekick (optional)  
+**Deployment Time**: 5–10 minutes (Docker) + 2–5 min Falcosidekick (optional)
 **Success Criteria**: Falco detecting syscalls, rules loading, events forwarding to collectors
 
 ---
@@ -208,7 +208,7 @@
 |------|------|----------|---------|--------|
 | `tp6/README_TP6.md` | Markdown | 6 | TP6 implementation & Minikube setup | ✅ Complete |
 
-**Deployment Time**: 2–5 minutes (policy application)  
+**Deployment Time**: 2–5 minutes (policy application)
 **Success Criteria**: Minikube running, policies applied, admission control enforcing rules
 
 ---
@@ -432,9 +432,9 @@
 
 ---
 
-**Manifest Version**: 1.0  
-**Last Generated**: November 2025  
+**Manifest Version**: 1.0
+**Last Generated**: November 2025
 **Platform Status**: ✅ **COMPLETE & VERIFIED**
 
-**All 47 files are production-ready and tested on Ubuntu 24.04 LTS.**  
+**All 47 files are production-ready and tested on Ubuntu 24.04 LTS.**
 **Proceed with deployment using FINAL_PACKAGE_README.md or IMPLEMENTATION_GUIDE.md.**

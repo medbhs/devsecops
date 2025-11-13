@@ -232,11 +232,11 @@ docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest detect --source /p
 
 if [ -f /tmp/gitleaks-test.json ]; then
     echo "✓ Gitleaks scan completed"
-    
+
     # Verify JSON output is valid
     if jq empty /tmp/gitleaks-test.json 2>/dev/null; then
         echo "✓ Gitleaks output is valid JSON"
-        
+
         # Count findings
         FINDINGS=$(jq '.Results | length' /tmp/gitleaks-test.json)
         echo "  Secrets found: $FINDINGS"
@@ -437,7 +437,7 @@ RESPONSE=$(curl -s "$SONAR_URL/api/qualitygates/list?token=$SONAR_TOKEN")
 
 if echo "$RESPONSE" | jq -e '.qualitygates | length > 0' >/dev/null 2>&1; then
     echo "✓ Quality gates exist"
-    
+
     # Check default gate
     if echo "$RESPONSE" | jq -e '.qualitygates[] | select(.isDefault == true)' >/dev/null 2>&1; then
         echo "✓ Default quality gate is set"
@@ -492,16 +492,16 @@ echo "=== TP5.1: Falco Status ==="
 # Check if Falco container is running
 if docker ps | grep -q "falco"; then
     echo "✓ Falco container is running"
-    
+
     # Check recent logs
     FALCO_LOGS=$(docker logs falco 2>&1 | tail -20)
-    
+
     if echo "$FALCO_LOGS" | grep -q "engine started"; then
         echo "✓ Falco engine started"
     else
         echo "⚠ Falco engine startup not confirmed in recent logs"
     fi
-    
+
     # Check for errors
     if echo "$FALCO_LOGS" | grep -i "error" | grep -v "ERROR_CODE\|HEALTH"; then
         echo "⚠ Falco logs contain errors (may be non-blocking)"
@@ -562,7 +562,7 @@ HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$PROM_URL/api/v1/query?query
 
 if [ "$HTTP_CODE" == "200" ]; then
     echo "✓ Prometheus is responding"
-    
+
     # Query for any metrics
     QUERY=$(curl -s "$PROM_URL/api/v1/query?query=up" | jq '.data.result | length')
     if [ "$QUERY" -gt 0 ]; then
@@ -645,10 +645,10 @@ echo "=== TP6.3: NetworkPolicy Enforcement ==="
 # Check if CNI supports NetworkPolicy
 if kubectl get nodes -o wide | grep -q "kube-"; then
     echo "✓ Cluster nodes detected"
-    
+
     # Check for NetworkPolicy resources
     NP_COUNT=$(kubectl get networkpolicies -A 2>/dev/null | wc -l)
-    
+
     if [ "$NP_COUNT" -gt 1 ]; then
         echo "✓ NetworkPolicies are configured"
     else
@@ -779,5 +779,5 @@ fi
 
 ---
 
-**Document Version**: 1.0  
+**Document Version**: 1.0
 **Last Updated**: November 2025

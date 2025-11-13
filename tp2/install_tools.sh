@@ -22,4 +22,4 @@ docker pull sonarsource/sonar-scanner-cli:latest
 docker pull owasp/dependency-check:latest
 docker pull zricethezav/gitleaks:latest
 
-echo "[+] Done. You may need to log out/in for Docker group changes to apply." 
+echo "[+] Done. You may need to log out/in for Docker group changes to apply."

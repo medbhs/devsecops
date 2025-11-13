@@ -23,4 +23,3 @@ Resources
 ---------
 - CIS Ubuntu 22/24 benchmarks
 - Ubuntu unattended-upgrades documentation
-

@@ -3,7 +3,7 @@
 set -euo pipefail
 TARGET_DIR="${1:-.}"
 SONAR_HOST_URL="${SONAR_HOST_URL:-http://localhost:9000}"
-SONAR_LOGIN="${SONAR_LOGIN:-}" 
+SONAR_LOGIN="${SONAR_LOGIN:-}"
 
 if [ -z "$SONAR_LOGIN" ]; then
   echo "SONAR_LOGIN is not set. Export SONAR_LOGIN with your token and retry." >&2

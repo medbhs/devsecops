@@ -101,8 +101,8 @@
                 }
                 setCopyText($('#suppress-name').val(),
                             switchTo,
-                            $('#suppress-'+switchTo).val(), 
-                            $('#suppress-type').val(), 
+                            $('#suppress-'+switchTo).val(),
+                            $('#suppress-type').val(),
                             $('#suppress-val').val());
             }
             function copyText(name, sha1, packageUrl, type, val) {
@@ -201,7 +201,7 @@
           $( ".versionToggle" ).bind( "click", function( event ) {
             var lnk = event.target;
             return toggleDisplay(this,lnk.getAttribute('data-toggle'), 'show all', 'show less');
-          });          
+          });
 
           $( ".copybutton" ).bind( "click", function( event ) {
             var btn = event.target;
@@ -269,7 +269,7 @@
             }
             .suppresstype.active {
                 display: block;
-            }  
+            }
             .suppressedLabel {
                 cursor: default;
                 padding:1px;

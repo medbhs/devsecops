@@ -54,4 +54,3 @@ gatekeeper-controller-manager-65c64fd969-ts8t8   1/1     Running   1 (151m ago) 
 Error from server (Forbidden): error when creating "STDIN": admission webhook "validation.gatekeeper.sh" denied the request: [disallow-latest-and-unapproved-registries] Image nginx:latest is from an unapproved registry
 [disallow-latest-and-unapproved-registries] Image nginx:latest uses :latest tag, disallowed
 [+] verify complete (if Gatekeeper installed, the test deployment should be denied)
-

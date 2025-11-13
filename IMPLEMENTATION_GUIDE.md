@@ -596,7 +596,7 @@ echo "All validations completed. Review results above for failures."
 
 ### Performance Targets
 - Secret scanning: < 1 minute
-- SAST (SonarQube): < 5 minutes  
+- SAST (SonarQube): < 5 minutes
 - Dependency-Check: < 2 minutes
 - Container scan (Trivy): < 2 minutes
 - K8s policy check: < 30 seconds
@@ -760,6 +760,6 @@ tar -czf devsecops-logs.tar.gz /tmp/devsecops-logs/
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: November 2025  
+**Document Version**: 1.0
+**Last Updated**: November 2025
 **Environment**: Ubuntu 24.04 LTS, Local Lab

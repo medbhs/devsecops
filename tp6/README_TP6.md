@@ -17,4 +17,3 @@ Notes
 - Gatekeeper requires installation in cluster: `kubectl apply -f https://raw.githubusercontent.com/open-policy-agent/gatekeeper/master/deploy/gatekeeper.yaml` (or use the release manifest).
 - Minikube's default storage must be adjusted to enable secrets encryption; steps provided in `encrypt_k8s_secrets.md`.
 - NetworkPolicy requires a CNI that supports it (e.g., Calico). Minikube can use calico addon or install calico manually.
-

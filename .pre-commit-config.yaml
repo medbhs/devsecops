@@ -1,0 +1,87 @@
+# .pre-commit-config.yaml
+
+# Global exclude for all hooks (skip virtualenvs, caches, build output, artifacts, and reports)
+exclude: |
+  (?x)^(
+    \.venv/|
+    venv/|
+    env/|
+    dist/|
+    build/|
+    artifacts/|
+    \.mypy_cache/|
+    \.pytest_cache/|
+    \.git/|
+    dependency-check-report/
+  )
+
+repos:
+  # 1) Base hygiene: YAML/TOML/JSON checks, EOF & EOL normalization
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    # Tip: run `pre-commit autoupdate` periodically to bump this tag.
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+        args: ["--allow-multiple-documents"]
+      - id: check-toml
+      - id: check-json
+
+      # Exclude artifacts/reports that shouldn't be modified by the fixer
+      - id: end-of-file-fixer
+        exclude: |
+          (?x)^(
+            tp1/aide-check\.txt|
+            gitleaks-report\.json
+          )$
+
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+
+  # 2) Black (formatter)
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        args: ["--line-length", "100"]
+
+  # 3) Flake8 (lint)
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        # Safety net: exclude common generated paths (global exclude applies too)
+        args:
+          - "--max-line-length=100"
+          - "--extend-ignore=E203,W503"
+          - "--exclude=.git,__pycache__,.mypy_cache,.pytest_cache,venv,env,.venv,dist,build,artifacts"
+
+  # 4) Bandit (Python security SAST)
+  # pass_filenames: false avoids pre-commit passing a file list that conflicts with recursive scanning.
+  # We scan only application code to avoid B101 (assert) in tests.
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ["-r", "app", "-q"]
+        pass_filenames: false
+
+  # 5) detect-secrets (baseline enforcement)
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args:
+          - "--baseline"
+          - ".secrets.baseline"
+        # If you ever re-add a packed repo file, you can exclude it like:
+        #   - "--exclude-files"
+        #   - "repomix-output\\.xml"
+
+  # 6) pip-audit (dependency vulnerability scan)
+  # Kept manual locally (so routine commits stay fast). CI runs pip-audit explicitly and uploads SARIF.
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.9.0
+    hooks:
+      - id: pip-audit
+        args: ["-r", "requirements.txt"]
+        stages: [manual]

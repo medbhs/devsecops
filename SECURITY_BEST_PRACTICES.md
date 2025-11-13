@@ -633,5 +633,5 @@ tar -czf audit-evidence-$(date +%Y%m%d).tar.gz /tmp/audit-evidence
 
 ---
 
-**Document Version**: 1.0  
+**Document Version**: 1.0
 **Last Updated**: November 2025

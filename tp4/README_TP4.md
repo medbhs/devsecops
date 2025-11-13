@@ -11,4 +11,3 @@ Included files
 - `integrate_dependency_check.sh` - parse and upload Dependency-Check report to Sonar or store in artifact
 - `license_scanning.md` - guidance for license scanning (fossology/spdx)
 - `jenkins_quality_gate_stage.groovy` - snippet to add to Jenkinsfile to fail builds on quality gate
-

@@ -1,0 +1,4 @@
+# RuleID  Threshold   Action  Notes
+# Format: <ID>\t<THRESHOLD>\t<ACTION>\t<COMMENT>
+10011    OFF         IGNORE  Cookie Without Secure Flag (for local CI only)
+10015    OFF         IGNORE  Cache-Control header (local demo scans)

@@ -47,4 +47,3 @@ sudo bash ./sonar_scan.sh .
 Notes
 - For Jenkins integration, add the SONAR token and other secrets to Jenkins Credentials (Secret text/username-password). Use the `withCredentials` block in the `Jenkinsfile`.
 - Scanner containers are used to keep the host clean and ensure repeatability.
-

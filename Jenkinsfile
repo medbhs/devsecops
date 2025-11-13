@@ -13,7 +13,7 @@
 
 pipeline {
   agent any
-  
+
   options {
     timestamps()
     ansiColor('xterm')
@@ -27,12 +27,12 @@ pipeline {
     SONAR_HOST_URL = credentials('sonar-host-url') ?: 'http://localhost:9000'
     // Store secrets in Jenkins credentials, reference here
     // SONAR_TOKEN = credentials('sonar-token')
-    
+
     // TP3: Container registry
     DOCKER_REGISTRY = credentials('docker-registry') ?: 'docker.io'
     // DOCKER_USER = credentials('dockerhub-user')
     // DOCKER_PASS = credentials('dockerhub-pass')
-    
+
     // TP6: Kubernetes config
     KUBECONFIG = '/home/jenkins/.kube/config'
     K8S_NAMESPACE = 'default'
@@ -47,25 +47,25 @@ pipeline {
           echo "========== TP1: Verifying node security baseline =========="
           sh '''
             set +e
-            
+
             # Check UFW is enabled
             if ! ufw status | grep -q "Status: active"; then
               echo "WARNING: UFW not active on agent"
               exit 1
             fi
-            
+
             # Check auditd is running
             if ! systemctl is-active --quiet auditd; then
               echo "WARNING: auditd not active on agent"
               exit 1
             fi
-            
+
             # Check SSH hardening
             if sshd -T 2>/dev/null | grep -iq "passwordauthentication yes"; then
               echo "ERROR: SSH password authentication enabled"
               exit 2
             fi
-            
+
             echo "✓ Node baseline checks passed"
           '''
         }
@@ -287,7 +287,7 @@ pipeline {
             else
               echo "⚠ Falco container not found; runtime security may be limited"
             fi
-            
+
             # Check if Wazuh agent configured
             if command -v /var/ossec/bin/wazuh-control >/dev/null 2>&1; then
               echo "✓ Wazuh agent present"
@@ -323,8 +323,8 @@ pipeline {
 
     stage('TP6-B: Apply Security Policies') {
       when {
-        expression { 
-          fileExists('/usr/local/bin/kubectl') && 
+        expression {
+          fileExists('/usr/local/bin/kubectl') &&
           fileExists('tp6/rbac_restrict.yaml') &&
           fileExists('tp6/networkpolicy_default_deny.yaml')
         }

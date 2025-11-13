@@ -26,4 +26,3 @@ systemctl is-active --quiet fail2ban && echo "fail2ban active" || echo "fail2ban
 
 echo "[+] Checking for core audit rules"
 auditctl -l || true
-

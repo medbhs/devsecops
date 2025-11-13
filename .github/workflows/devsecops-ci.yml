@@ -1,61 +1,113 @@
-name: DevSecOps CI
+name: DevSecOps (pre-commit, static, dynamic, tests)
 
 on:
   push:
-    branches: [ main ]
   pull_request:
 
 jobs:
-  scans:
+  devsecops:
     runs-on: ubuntu-latest
+
+    env:
+      PYTHON_VERSION: "3.11"
+      # Change if your FastAPI app is in a different module:
+      APP_IMPORT_PATH: "app.main:app"
+      # We’ll point ZAP to the host runner from inside Docker:
+      ZAP_TARGET: "http://host.docker.internal:8000"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Gitleaks for secrets detection
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          args: --path=.
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      # Trivy for vulnerability scanning
-      - name: Run Trivy (Filesystem Scan)
-        uses: aquasecurity/trivy-action@master
+      - name: Cache pip
+        uses: actions/cache@v4
         with:
-          scan-type: fs
-          ignore-unfixed: true
-          severity: CRITICAL,HIGH
-          format: json
-          output: trivy-report.json
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/requirements*.txt', 'pyproject.toml') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
 
-      - name: Upload Trivy report
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-report
-          path: trivy-report.json
-
-      # OWASP Dependency-Check
-      - name: Run OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: "DevSecOps"
-          path: "."
-          format: "ALL"
-
-      - name: Upload Dependency-Check reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check
-          path: dependency-check-report/**
-
-      # Fail if Trivy found HIGH/CRITICAL vulnerabilities
-      - name: Fail on High/Critical vulnerabilities
+      - name: Install dev dependencies
         run: |
-          if [ -f trivy-report.json ]; then
-            count=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL" or .Severity=="HIGH")] | length' trivy-report.json)
-            echo "High/Critical count: $count"
-            if [ "$count" -gt 0 ]; then
-              echo "Failing job because Trivy found $count HIGH/CRITICAL vulnerabilities"
-              exit 1
-            fi
+          python -m pip install --upgrade pip
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Ensure tools present even if requirements files are empty:
+          pip install pre-commit black flake8 bandit mypy pip-audit detect-secrets pytest httpx fastapi uvicorn
+
+      # ---------- Pre-commit (format/lint/security hooks) ----------
+      - name: Run pre-commit on all files
+        run: |
+          pre-commit install -f
+          # run all hooks except pip-audit (network). We'll run pip-audit below.
+          SKIP=pip-audit pre-commit run --all-files
+
+      # ---------- Static analysis ----------
+      - name: Bandit (security lint)
+        run: bandit -r . --exclude tests
+      - name: Flake8
+        run: flake8 .
+      - name: Black check
+        run: black --check --line-length 100 .
+      - name: mypy (static typing)
+        run: mypy .
+      - name: pip-audit (dependencies)
+        run: |
+          if [ -f requirements.txt ]; then
+            pip-audit -r requirements.txt
+          else
+            pip-audit
           fi
+
+      # ---------- Unit and security tests ----------
+      - name: Pytest
+        env:
+          APP_IMPORT_PATH: ${{ env.APP_IMPORT_PATH }}
+        run: pytest -q --disable-warnings --maxfail=1
+
+      # ---------- Dynamic analysis (OWASP ZAP Baseline) ----------
+      - name: Start FastAPI for ZAP scan (background)
+        run: |
+          set -e
+          python - <<'PY'
+          import importlib, os, sys
+          target = os.environ.get("APP_IMPORT_PATH","app.main:app")
+          mod, obj = target.split(":")
+          app = getattr(importlib.import_module(mod), obj)
+          from uvicorn import Config, Server
+          config = Config(app=app, host="0.0.0.0", port=8000, log_level="warning")
+          server = Server(config)
+          import asyncio
+          asyncio.get_event_loop().create_task(server.serve())
+          # keep process alive briefly while next step waits
+          import time; time.sleep(1)
+          PY
+          # Wait until it’s up
+          for i in {1..30}; do
+            if curl -fsS $ZAP_TARGET/docs >/dev/null 2>&1; then echo "API is up"; break; fi
+            sleep 1
+          done
+
+      - name: ZAP Baseline scan
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: ${{ env.ZAP_TARGET }}
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+          allow_issue_writing: false
+          artifact_name: zap_scan
+
+      - name: Always upload test and ZAP artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-artifacts
+          path: |
+            .pytest_cache/**
+            .mypy_cache/**
+            zap_scan/**
