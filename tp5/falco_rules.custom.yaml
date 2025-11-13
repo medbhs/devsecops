@@ -1,0 +1,16 @@
+# Custom Falco rules for DevSecOps lab (simplified for compatibility)
+# Save as /etc/falco/falco_rules.local.yaml
+
+- rule: Shell Spawned
+  desc: A shell was spawned
+  condition: evt.type = execve and proc.name in ("sh","bash")
+  output: "Shell spawned"
+  priority: NOTICE
+  tags: [shell]
+
+- rule: Sensitive File Access
+  desc: Access to /etc/shadow or passwd
+  condition: evt.type = open and fd.name in ("/etc/shadow","/etc/passwd")
+  output: "Sensitive file accessed"
+  priority: WARNING
+  tags: [host, audit]

@@ -1,0 +1,23 @@
+{
+  "annotations":{
+    "list":[]
+  },
+  "panels":[
+    {
+      "type":"graph",
+      "title":"Falco Alerts (by severity)",
+      "targets":[
+        {"expr":"falcosidekick_alerts_total{severity=\"CRITICAL\"}", "refId":"A"},
+        {"expr":"falcosidekick_alerts_total{severity=\"ERROR\"}", "refId":"B"}
+      ],
+      "id":1
+    },
+    {
+      "type":"graph",
+      "title":"Wazuh Alerts",
+      "targets":[{"expr":"wazuh_alerts_total","refId":"A"}],
+      "id":2
+    }
+  ],
+  "title":"Security Overview"
+}

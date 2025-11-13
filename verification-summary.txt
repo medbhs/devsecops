@@ -1,0 +1,57 @@
+Verification summary generated on 12 نوفمبر, 2025 UTC 09:26:36 م
+Repository: /home/ubuntu/Desktop/DevOps/DevSecOps
+
+--- /home/ubuntu/Desktop/DevOps/DevSecOps/tp1/verify_baseline.sh ---
+[+] UFW status
+ERROR: You need to be root to run this script
+[+] SSHd drop-in files
+ls: cannot access '/etc/ssh/sshd_config.d': No such file or directory
+[+] sshd config checks
+/home/ubuntu/Desktop/DevOps/DevSecOps/tp1/verify_baseline.sh: line 12: sshd: command not found
+[+] auditd status
+auditd active
+[+] AIDE DB presence
+AIDE DB missing - run aideinit as root
+[+] fail2ban status
+fail2ban active
+[+] Checking for core audit rules
+You must be root to run this program.
+
+--- /home/ubuntu/Desktop/DevOps/DevSecOps/tp2/verify_tp2.sh ---
+[+] Verifying TP2 scanners
+bash: ./gitleaks_scan.sh: No such file or directory
+bash: ./dependency_check_scan.sh: No such file or directory
+SONAR_LOGIN not set - skipping Sonar scan
+[+] Verification complete. Check reports: gitleaks-report.json, dependency-check-report, Sonar logs (if run)
+
+--- /home/ubuntu/Desktop/DevOps/DevSecOps/tp5/verify_tp5.sh ---
+[+] Checking Falco service
+Falco is not active - check /var/log/falco or systemctl status falco
+(script /home/ubuntu/Desktop/DevOps/DevSecOps/tp5/verify_tp5.sh exited non-zero)
+
+--- /home/ubuntu/Desktop/DevOps/DevSecOps/tp6/verify_tp6.sh ---
+[+] Checking namespaces and PodSecurity labels
+NAME                   STATUS   AGE    LABELS
+baseline-namespace     Active   6h6m   kubernetes.io/metadata.name=baseline-namespace,pod-security.kubernetes.io/audit=baseline,pod-security.kubernetes.io/enforce=baseline,pod-security.kubernetes.io/warn=baseline
+default                Active   6h6m   kubernetes.io/metadata.name=default
+gatekeeper-system      Active   6h6m   admission.gatekeeper.sh/ignore=no-self-managing,control-plane=controller-manager,gatekeeper.sh/system=yes,kubernetes.io/metadata.name=gatekeeper-system,pod-security.kubernetes.io/audit-version=latest,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce-version=v1.24,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn-version=latest,pod-security.kubernetes.io/warn=restricted
+kube-node-lease        Active   6h6m   kubernetes.io/metadata.name=kube-node-lease
+kube-public            Active   6h6m   kubernetes.io/metadata.name=kube-public
+kube-system            Active   6h6m   kubernetes.io/metadata.name=kube-system
+kubernetes-dashboard   Active   14m    addonmanager.kubernetes.io/mode=Reconcile,kubernetes.io/metadata.name=kubernetes-dashboard,kubernetes.io/minikube-addons=dashboard
+secure-namespace       Active   6h6m   kubernetes.io/metadata.name=secure-namespace,pod-security.kubernetes.io/audit=restricted,pod-security.kubernetes.io/enforce=restricted,pod-security.kubernetes.io/warn=baseline
+[+] Checking NetworkPolicy
+NAMESPACE   NAME                POD-SELECTOR   AGE
+default     allow-app-ingress   app=myapp      6h6m
+default     default-deny-all    <none>         6h6m
+[+] Checking Gatekeeper deployment
+NAME                                             READY   STATUS    RESTARTS       AGE
+gatekeeper-audit-9cdd4db67-dhmlf                 1/1     Running   3 (151m ago)   6h6m
+gatekeeper-controller-manager-65c64fd969-cpq2m   1/1     Running   1 (151m ago)   6h6m
+gatekeeper-controller-manager-65c64fd969-l98z2   1/1     Running   1 (151m ago)   6h6m
+gatekeeper-controller-manager-65c64fd969-ts8t8   1/1     Running   1 (151m ago)   6h6m
+[+] Trying to create deployment with :latest image (should be blocked if Gatekeeper active)
+Error from server (Forbidden): error when creating "STDIN": admission webhook "validation.gatekeeper.sh" denied the request: [disallow-latest-and-unapproved-registries] Image nginx:latest is from an unapproved registry
+[disallow-latest-and-unapproved-registries] Image nginx:latest uses :latest tag, disallowed
+[+] verify complete (if Gatekeeper installed, the test deployment should be denied)
+

@@ -1,0 +1,7 @@
+# Sample audit rules for TP1
+-w /etc/passwd -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/sudoers -p wa -k actions
+-w /var/log/auth.log -p wa -k logins
+-a always,exit -F arch=b64 -S execve -k exec

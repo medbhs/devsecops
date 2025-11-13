@@ -1,0 +1,19 @@
+# Apply PodSecurity labels to namespaces (for clusters with PodSecurity admission)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: secure-namespace
+  labels:
+    pod-security.kubernetes.io/enforce: "restricted"
+    pod-security.kubernetes.io/audit: "restricted"
+    pod-security.kubernetes.io/warn: "baseline"
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: baseline-namespace
+  labels:
+    pod-security.kubernetes.io/enforce: "baseline"
+    pod-security.kubernetes.io/audit: "baseline"
+    pod-security.kubernetes.io/warn: "baseline"

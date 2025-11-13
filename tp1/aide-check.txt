@@ -1,0 +1,13 @@
+   INFO: initialize rule tree
+   INFO: define default attribute definitions
+   INFO: define default groups definitions
+   INFO: read command line parameters
+   INFO: (--config): set config file to '/etc/aide/aide.conf'
+   INFO: (--check): database check command
+   INFO: parse configuration
+   INFO: populate tree
+   INFO: read old entries from database: file:/var/lib/aide/aide.db
+   INFO: file:/var/lib/aide/aide.db:0: db_readline_file(): empty database file
+   INFO: read new entries from disk (limit: '(none)', root prefix: '')
+Caught SIGHUP. Ignoring
+Caught SIGHUP. Ignoring

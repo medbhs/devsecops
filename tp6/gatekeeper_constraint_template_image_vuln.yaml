@@ -1,0 +1,40 @@
+apiVersion: templates.gatekeeper.sh/v1beta1
+kind: ConstraintTemplate
+metadata:
+  name: k8simagepolicy
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sImagePolicy
+  targets:
+  - target: admission.k8s.gatekeeper.sh
+    rego: |
+      package k8simagepolicy
+
+      # Helper: returns containers for Deployments and Pod specs
+      containers(obj) = c {
+        # Try direct pod spec (e.g. Pod)
+        c := obj.spec.containers[_]
+      }
+
+      containers(obj) = c {
+        # Try workload template (e.g. Deployment, DaemonSet)
+        c := obj.spec.template.spec.containers[_]
+      }
+
+      violation[{"msg": msg, "details": {"container": container.name, "image": container.image}}] {
+        container := containers(input.review.object)
+        # Disallow usage of :latest tag
+        contains(container.image, ":latest")
+        msg := sprintf("Image %s uses :latest tag, disallowed", [container.image])
+      }
+
+      violation[{"msg": msg, "details": {"container": container.name, "image": container.image}}] {
+        container := containers(input.review.object)
+        # Disallow images from unapproved registries (simple allow-list)
+        not startswith(container.image, "gcr.io")
+        not startswith(container.image, "quay.io")
+        not startswith(container.image, "myregistry/")
+        msg := sprintf("Image %s is from an unapproved registry", [container.image])
+      }

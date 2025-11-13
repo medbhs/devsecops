@@ -1,0 +1,2 @@
+Error from server (Forbidden): error when creating "/home/ubuntu/Desktop/DevOps/DevSecOps/tp6/gatekeeper-test.yaml": admission webhook "validation.gatekeeper.sh" denied the request: [disallow-latest-and-unapproved-registries] Image nginx:latest is from an unapproved registry
+[disallow-latest-and-unapproved-registries] Image nginx:latest uses :latest tag, disallowed

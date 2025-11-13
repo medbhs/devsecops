@@ -1,0 +1,122 @@
+// Full Jenkins pipeline with security stages
+pipeline {
+  agent any
+  environment {
+    SONAR_HOST_URL = credentials('sonar-host-url') // Use a credential for host if needed
+    // Token stored as 'sonar-token' secret text in Jenkins
+  }
+  options {
+    timestamps()
+    ansiColor('xterm')
+    // Keep build history small for resource-conscious environment
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+  }
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Secret Scanning') {
+      steps {
+        echo 'Running Gitleaks (secrets scan)'
+        sh 'bash tp2/gitleaks_scan.sh .'
+      }
+      post {
+        always {
+          archiveArtifacts artifacts: 'gitleaks-report.json', allowEmptyArchive: true
+        }
+        failure {
+          echo 'Gitleaks found issues. Marking build UNSTABLE.'
+          unstable('Secrets detected')
+        }
+      }
+    }
+
+    stage('SAST Analysis (SonarQube)') {
+      steps {
+        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_LOGIN')]) {
+          sh 'export SONAR_LOGIN="$SONAR_LOGIN"; export SONAR_HOST_URL="http://sonarqube:9000"; bash tp2/sonar_scan.sh .'
+        }
+      }
+      post {
+        success {
+          echo 'SonarQube analysis completed.'
+        }
+      }
+    }
+
+    stage('Dependency Check') {
+      steps {
+        echo 'Running OWASP Dependency-Check'
+        sh 'bash tp2/dependency_check_scan.sh .'
+      }
+      post {
+        always {
+          archiveArtifacts artifacts: 'dependency-check-report/**', allowEmptyArchive: true
+        }
+      }
+    }
+
+    stage('Build') {
+      steps {
+        // Example for Maven Java build
+        sh 'mvn -B -DskipTests=false clean package'
+      }
+    }
+
+    stage('Unit Tests') {
+      steps {
+        sh 'mvn test'
+      }
+      post {
+        always {
+          junit '**/target/surefire-reports/*.xml'
+        }
+      }
+    }
+
+    stage('Container Build') {
+      steps {
+        script {
+          def image = "myrepo/${env.JOB_NAME}:${env.BUILD_NUMBER}"
+          sh "docker build -t ${image} ."
+          sh "docker tag ${image} myregistry/${image} || true"
+        }
+      }
+    }
+
+    stage('Container Scan') {
+      steps {
+        echo 'Container scanning placeholder (Trivy integration in TP3)'
+        // sh 'bash tp3/trivy_scan.sh ${image}'
+      }
+    }
+
+    stage('Image Signing') {
+      steps {
+        echo 'Image signing placeholder (Cosign)'
+        // withCredentials([...]) { sh 'cosign sign ...' }
+      }
+    }
+
+    stage('Deploy to K8s') {
+      steps {
+        echo 'Deployment step (Minikube / K8s) - TP6 will provide hardened manifests and gate enforcement'
+      }
+    }
+
+    stage('Runtime Security') {
+      steps {
+        echo 'Runtime security checks (Falco/Wazuh) - TP5 integration'
+      }
+    }
+  }
+
+  post {
+    always {
+      echo 'Pipeline finished. Collecting logs and scanning artifacts.'
+    }
+  }
+}

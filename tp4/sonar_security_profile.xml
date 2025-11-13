@@ -1,0 +1,11 @@
+<!-- Example SonarQube quality profile export snippet for security rules (partial) -->
+<profile>
+  <name>DevSecOps Security Rules</name>
+  <language>java</language>
+  <rules>
+    <!-- Example: Enable OWASP Top 10 rules and security-related rules -->
+    <rule repositoryKey="squid" key="S2068" enabled="true"/>
+    <rule repositoryKey="security" key="S1192" enabled="true"/>
+    <!-- Add more security rules relevant to languages in your lab -->
+  </rules>
+</profile>
