@@ -8,7 +8,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write   # To upload SARIF
+  security-events: write
   actions: read
 
 jobs:
@@ -34,8 +34,8 @@ jobs:
       - name: Install tooling
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-          pip install pre-commit
+          pip install -r requirements-dev.txt || true
+          pip install pre-commit black flake8 bandit detect-secrets pip-audit
 
       - name: Run pre-commit on all files
         run: pre-commit run --all-files
@@ -55,32 +55,33 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt || true
+          pip install -r requirements.txt || true
+          pip install bandit mypy pip-audit
 
       - name: Bandit (SARIF)
         run: |
-          bandit -r . -x tests -f sarif -o bandit.sarif || true
-
+          bandit -r . -x tests -f sarif -o bandit.sarif || echo "Bandit completed"
       - name: Upload Bandit SARIF
+        if: hashFiles('bandit.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: bandit.sarif
 
       - name: mypy (type check)
-        run: |
-          mypy .
+        run: mypy .
 
       - name: pip-audit (requirements*.txt → SARIF)
         run: |
-          pip-audit -r requirements.txt -f sarif -o pip-audit.sarif || true
-          if [ -f requirements-dev.txt ]; then pip-audit -r requirements-dev.txt -f sarif -o pip-audit-dev.sarif || true; fi
-
+          pip-audit -r requirements.txt -f sarif -o pip-audit.sarif || echo "pip-audit completed"
+          if [ -f requirements-dev.txt ]; then
+            pip-audit -r requirements-dev.txt -f sarif -o pip-audit-dev.sarif || echo "pip-audit-dev completed"
+          fi
       - name: Upload pip-audit SARIF
+        if: hashFiles('pip-audit.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: pip-audit.sarif
-
       - name: Upload pip-audit-dev SARIF (if any)
         if: hashFiles('pip-audit-dev.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
@@ -90,9 +91,9 @@ jobs:
   tests:
     name: Unit & Security Tests (pytest)
     runs-on: ubuntu-latest
-    needs: precommit
+    needs: static
     env:
-      APP_IMPORT_PATH: app.main:app  # change if your FastAPI app object lives elsewhere
+      APP_IMPORT_PATH: app.main:app
     steps:
       - uses: actions/checkout@v4
 
@@ -104,14 +105,14 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt || true
+          pip install -r requirements.txt || true
+          pip install pytest httpx
 
-      - name: Run pytest (quiet)
-        run: |
-          pytest -q
+      - name: Run pytest
+        run: pytest -q
 
-      - name: Upload pytest cache (optional)
+      - name: Upload pytest caches (optional)
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -122,43 +123,48 @@ jobs:
           if-no-files-found: ignore
 
   zap:
-    name: OWASP ZAP API DAST
+    name: OWASP ZAP DAST Scan
     runs-on: ubuntu-latest
     needs: tests
     timeout-minutes: 30
     env:
-      APP_IMPORT_PATH: app.main:app   # change if needed
-      HOST: 0.0.0.0
+      APP_IMPORT_PATH: app.main:app
+      HOST: 127.0.0.1
       PORT: 8000
-      ZAP_FAIL_ON: "medium"  # 'high' or 'medium' -> pipeline fails if alerts at/above this risk exist
+      ZAP_FAIL_ON: "medium"
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install runtime deps (to run the app)
+      - name: Set up Python (run app)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install runtime deps
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt || true
+          pip install uvicorn
 
       - name: Launch FastAPI (background)
         run: |
-          nohup bash scripts/start_app.sh > app.log 2>&1 &
+          nohup python -m uvicorn ${APP_IMPORT_PATH} --host ${HOST} --port ${PORT} > app.log 2>&1 &
 
       - name: Wait for app
         run: |
           bash scripts/wait-for-http.sh http://127.0.0.1:${PORT}/docs 60
 
-      - name: Run ZAP API scan (docker)
-        run: |
-          mkdir -p artifacts/zap
-          bash scripts/zap-api-scan.sh \
-            --target "http://127.0.0.1:${PORT}" \
-            --openapi "/openapi.json" \
-            --rules ".zap/rules.tsv" \
-            --out "artifacts/zap"
+      - name: Run OWASP ZAP Scan
+        uses: zaproxy/action-full-scan@v2
+        with:
+          target: "http://127.0.0.1:${{ env.PORT }}"
+          openapi: "/openapi.json"
+          fail_on_alert_threshold: ${{ env.ZAP_FAIL_ON }}
+          html_report_name: "zap-report.html"
 
-      - name: Upload ZAP reports
+      - name: Upload ZAP Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: zap-reports
-          path: artifacts/zap
+          name: zap-report
+          path: zap-report.html
