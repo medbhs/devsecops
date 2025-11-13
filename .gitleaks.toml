@@ -1,0 +1,12 @@
+title = "DevSecOps Repo Gitleaks Config"
+
+[allowlist]
+# Ignore known generated/non-secret files to reduce false positives
+paths = [
+  '''^\.secrets\.baseline$''',
+  '''^repomix-output\.xml$''',
+  '''^dependency-check-report/''',
+  '''^artifacts/''',
+  '''^DEMO_RUNBOOK\.md$''',
+  '''^IMPLEMENTATION_GUIDE\.md$''',
+]
