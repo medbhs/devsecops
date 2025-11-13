@@ -1,13 +1,29 @@
-dependency-check-report/
-scancode-report.json
-# .gitignore (root)
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.coverage
+.pytest_cache/
+
+# Virtual environments
 .venv/
 venv/
+ENV/
 env/
-__pycache__/
-.pytest_cache/
-.mypy_cache/
-dist/
-build/
+
+# Node (if any)
+node_modules/
+
+# CI artifacts / reports
 artifacts/
-*.log
+dependency-check-report/
+.gitleaks-cache/
+gitleaks-report.json
+repomix-output.xml
+
+# Editors/OS
+.DS_Store
+.idea/
+.vscode/

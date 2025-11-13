@@ -1,0 +1,42 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: end-of-file-fixer
+        exclude: '^(artifacts/|dependency-check-report/).*|^(tp1/aide-check\.txt|gitleaks-report\.json|repomix-output\.xml)$'
+      - id: trailing-whitespace
+        exclude: '^(artifacts/|dependency-check-report/).*|^(tp1/aide-check\.txt|gitleaks-report\.json|repomix-output\.xml)$'
+      - id: mixed-line-ending
+        exclude: '^(artifacts/|dependency-check-report/).*|^(tp1/aide-check\.txt|gitleaks-report\.json|repomix-output\.xml)$'
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+      - id: check-toml
+
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.7
+    hooks:
+      - id: bandit
+        args: ["-r", ".", "-s", "B101"]   # ignore pytest asserts only
+        pass_filenames: false             # avoid “unrecognized arguments” error
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
