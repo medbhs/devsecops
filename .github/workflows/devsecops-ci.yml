@@ -20,7 +20,7 @@ jobs:
 
       # Trivy for vulnerability scanning
       - name: Run Trivy (Filesystem Scan)
-        uses: aquasecurity/trivy-action@v0.20.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs
           ignore-unfixed: true
