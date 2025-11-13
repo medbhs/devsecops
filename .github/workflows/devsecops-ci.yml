@@ -79,28 +79,39 @@ jobs:
     runs-on: ubuntu-latest
     needs: [precommit]
     steps:
+      # Gitleaks action requires full history (fetch-depth: 0)
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # Use Docker image for stable, configurable Gitleaks run
-      - name: Gitleaks (Docker, SARIF)
-        run: |
-          mkdir -p artifacts
-          docker run --rm -v "${{ github.workspace }}:/repo" ghcr.io/gitleaks/gitleaks:latest \
-            detect --source /repo \
-            --report-format sarif --report-path /repo/artifacts/gitleaks.sarif \
-            --redact \
-            ${GITLEAKS_ARGS:-}
+      # Official Gitleaks action (no custom inputs). It writes a SARIF file we’ll upload after.
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
         env:
-          # Use repo config to ignore baseline/docs (provided below)
-          GITLEAKS_ARGS: >-
-            --config-path /repo/.gitleaks.toml
-        continue-on-error: true
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: use your repo config to reduce noise
+          GITLEAKS_CONFIG: .gitleaks.toml
+          # You can also disable PR comments with:
+          # GITLEAKS_ENABLE_COMMENTS: "false"
+
+      # The action creates a SARIF file (commonly named gitleaks.sarif or gitleaks-results.sarif).
+      # Try both, upload whichever exists.
+      - name: Find Gitleaks SARIF path
+        id: glx
+        run: |
+          if [ -f "gitleaks-results.sarif" ]; then
+            echo "sarif=gitleaks-results.sarif" >> $GITHUB_OUTPUT
+          elif [ -f "gitleaks.sarif" ]; then
+            echo "sarif=gitleaks.sarif" >> $GITHUB_OUTPUT
+          else
+            echo "No SARIF file produced by gitleaks-action"; exit 0
+          fi
 
       - name: Upload Gitleaks SARIF
-        if: always()
+        if: steps.glx.outputs.sarif != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: artifacts/gitleaks.sarif
+          sarif_file: ${{ steps.glx.outputs.sarif }}
 
       - name: Setup Python for detect-secrets
         uses: actions/setup-python@v5
@@ -111,6 +122,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install detect-secrets
+          mkdir -p artifacts
           detect-secrets scan > artifacts/detect-secrets.json || true
 
       - name: Upload secrets artifacts
@@ -172,7 +184,7 @@ jobs:
         run: docker build -t devsecops-app:ci .
 
       - name: Trivy scan (SARIF)
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: devsecops-app:ci
           format: sarif
@@ -200,33 +212,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python (run app)
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Build app image (reproducible per job)
+        run: docker build -t devsecops-app:ci .
 
-      - name: Install app deps
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+      - name: Create docker network
+        run: docker network create testnet
 
-      - name: Start app
+      - name: Start app container on testnet
         run: |
-          nohup bash scripts/start_app.sh >/tmp/app.log 2>&1 &
+          docker run -d --rm \
+            --name app \
+            --network testnet \
+            -p 8000:8000 \
+            devsecops-app:ci
 
       - name: Wait for health
-        run: bash scripts/wait-for-http.sh "http://127.0.0.1:8000/health" 60
-
-      - name: Run ZAP API scan (OpenAPI)
         run: |
-          bash scripts/zap-api-scan.sh \
-            --target "http://127.0.0.1:8000" \
-            --openapi "/openapi.json" \
-            --rules ".zap/rules.tsv" \
-            --out "artifacts/zap"
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:8000/health && exit 0
+            sleep 1
+          done
+          echo "App not healthy in time"; docker logs app || true; exit 1
+
+      - name: Run ZAP API scan (OpenAPI) on same network
+        run: |
+          mkdir -p artifacts/zap
+          docker run --rm --network testnet \
+            -v "${{ github.workspace }}/artifacts/zap:/zap/wrk" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-api-scan.py \
+              -t http://app:8000/openapi.json \
+              -f openapi \
+              -r zap-api-report.html \
+              -J zap-api-report.json \
+              -w zap-api-report.md
 
       - name: Upload ZAP artifacts
         uses: actions/upload-artifact@v4
         with:
           name: zap-artifacts
           path: artifacts/zap/
+      - name: Stop app
+        if: always()
+        run: docker rm -f app || true
