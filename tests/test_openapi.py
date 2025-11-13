@@ -1,6 +1,7 @@
 # tests/test_openapi.py
-import os
 import importlib
+import os
+
 import pytest
 from fastapi.testclient import TestClient
 

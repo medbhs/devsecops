@@ -1,110 +1,230 @@
-name: DevSecOps (pre-commit, static, dynamic, tests)
+name: DevSecOps CI
 
 on:
   push:
+    branches: [ "main" ]
   pull_request:
 
+permissions:
+  contents: read
+  security-events: write   # required for SARIF uploads
+
 jobs:
-  devsecops:
+  precommit:
+    name: Pre-commit (format, lint, bandit, detect-secrets)
     runs-on: ubuntu-latest
-
-    env:
-      PYTHON_VERSION: "3.11"
-      APP_IMPORT_PATH: "app.main:app"
-      ZAP_TARGET: "http://host.docker.internal:8000"
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: "3.11"
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/requirements*.txt', 'pyproject.toml') }}
-          restore-keys: |
-            pip-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
-
-      - name: Install dev dependencies
+      - name: Install dev deps
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install pre-commit black flake8 bandit mypy pip-audit detect-secrets pytest httpx fastapi uvicorn
+          pip install pre-commit -r requirements-dev.txt
 
       - name: Run pre-commit on all files
         run: |
-          pre-commit install -f
-          SKIP=pip-audit pre-commit run --all-files
+          pre-commit run --all-files
 
-      - name: Bandit (security lint)
-        run: bandit -r . --exclude tests -f sarif -o bandit.sarif -v || true
+      - name: Upload pre-commit logs (optional)
+        if: always()
+        run: echo "Completed pre-commit hooks"
 
-      - name: Debug Bandit Output
+  tests:
+    name: Pytests
+    runs-on: ubuntu-latest
+    needs: [precommit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
         run: |
-          ls -la
-          cat bandit.sarif || echo "bandit.sarif not found"
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: |
+          pytest
+
+  bandit-sast:
+    name: SAST (Bandit → SARIF)
+    runs-on: ubuntu-latest
+    needs: [precommit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Bandit
+        run: |
+          python -m pip install --upgrade pip
+          pip install "bandit>=1.7.7"
+
+      - name: Run Bandit SARIF
+        run: |
+          mkdir -p artifacts
+          bandit -r . -f sarif -o artifacts/bandit.sarif || true
 
       - name: Upload Bandit SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: bandit.sarif
-          wait-for-processing: true
+          sarif_file: artifacts/bandit.sarif
 
-      - name: Flake8
-        run: flake8 . || true
+  secrets:
+    name: Secrets scanning (Gitleaks + detect-secrets)
+    runs-on: ubuntu-latest
+    needs: [precommit]
+    steps:
+      - uses: actions/checkout@v4
 
-      - name: Black check
-        run: black --check --line-length 100 . || true
-
-      - name: mypy (static typing)
-        run: mypy . || true
-
-      - name: pip-audit (dependencies)
-        run: |
-          if [ -f requirements.txt ]; then
-            pip-audit -r requirements.txt || true
-          else
-            pip-audit || true
-          fi
-
-      - name: Pytest
-        env:
-          APP_IMPORT_PATH: ${{ env.APP_IMPORT_PATH }}
-          PYTHONPATH: .
-        run: pytest -q --disable-warnings --maxfail=1
-
-      - name: Start FastAPI for ZAP scan (background)
-        env:
-          PYTHONPATH: .
-        run: |
-          uvicorn app.main:app --host 0.0.0.0 --port 8000 --log-level warning &
-          for i in {1..30}; do
-            if curl -fsS $ZAP_TARGET/docs >/dev/null 2>&1; then echo "API is up"; break; fi
-            sleep 1
-          done
-
-      - name: ZAP Baseline scan
-        uses: zaproxy/action-baseline@v0.10.0
+      - name: Gitleaks (SARIF)
+        uses: gitleaks/gitleaks-action@v2
         with:
-          target: ${{ env.ZAP_TARGET }}
-          rules_file_name: '.zap/rules.tsv'
-          cmd_options: '-a'
-          allow_issue_writing: false
-          artifact_name: zap_scan
+          args: --path . --report-format sarif --report-path artifacts/gitleaks.sarif --redact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Always upload test and ZAP artefacts
+      - name: Upload Gitleaks SARIF
         if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: artifacts/gitleaks.sarif
+
+      - name: Setup Python for detect-secrets
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: detect-secrets scan (JSON artifact)
+        run: |
+          python -m pip install --upgrade pip
+          pip install detect-secrets
+          detect-secrets scan > artifacts/detect-secrets.json || true
+
+      - name: Upload secrets artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ci-artifacts
-          path: |
-            .pytest_cache/**
-            .mypy_cache/**
-            zap_scan/**
-            bandit.sarif
+          name: secrets-artifacts
+          path: artifacts/
+          if-no-files-found: warn
+
+  dep-audit:
+    name: Dependency audits (pip-audit + OWASP DC)
+    runs-on: ubuntu-latest
+    needs: [precommit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: pip-audit (JSON)
+        uses: pypa/gh-action-pip-audit@v1.0.8
+        with:
+          virtual-environment: false
+          ignore-vuln: ""     # adjust if you want ignores
+          format: json
+          output: artifacts/pip-audit.json
+        continue-on-error: true
+
+      - name: OWASP Dependency-Check (ALL formats)
+        run: |
+          mkdir -p dependency-check-report
+          docker run --rm \
+            -v "${{ github.workspace }}:/src" \
+            -v "${{ github.workspace }}/dependency-check-report:/report" \
+            owasp/dependency-check:latest \
+            --project "repo-scan" \
+            --scan /src \
+            --format "ALL" \
+            --out /report
+        continue-on-error: true
+
+      - name: Upload DC artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check
+          path: dependency-check-report/
+
+      - name: Upload DC SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: dependency-check-report/dependency-check-report.sarif
+
+  build-and-trivy:
+    name: Container build + Trivy (SARIF)
+    runs-on: ubuntu-latest
+    needs: [tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t devsecops-app:ci .
+
+      - name: Trivy scan (SARIF)
+        uses: aquasec/trivy-action@0.20.0
+        with:
+          image-ref: devsecops-app:ci
+          format: 'sarif'
+          output: 'artifacts/trivy.sarif'
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH,MEDIUM,LOW'
+          exit-code: '0'
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: artifacts/trivy.sarif
+
+      - name: Upload Trivy artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-artifacts
+          path: artifacts/trivy.sarif
+
+  dast-zap:
+    name: DAST (OWASP ZAP API scan)
+    runs-on: ubuntu-latest
+    needs: [build-and-trivy]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python (run app)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install app deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Start app
+        run: |
+          nohup bash scripts/start_app.sh >/tmp/app.log 2>&1 &
+
+      - name: Wait for health
+        run: bash scripts/wait-for-http.sh "http://127.0.0.1:8000/health" 60
+
+      - name: Run ZAP API scan (OpenAPI)
+        run: |
+          bash scripts/zap-api-scan.sh \
+            --target "http://127.0.0.1:8000" \
+            --openapi "/openapi.json" \
+            --rules ".zap/rules.tsv" \
+            --out "artifacts/zap"
+
+      - name: Upload ZAP artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-artifacts
+          path: artifacts/zap/
