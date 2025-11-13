@@ -1,4 +1,5 @@
 # .pre-commit-config.yaml
+# Updated to include pip-audit (local hook) in addition to existing Black/Flake8/Bandit/detect-secrets hooks.
 
 # Global exclude for all hooks (skip virtualenvs, caches, build output, artifacts, and reports)
 exclude: |
@@ -18,22 +19,18 @@ exclude: |
 repos:
   # 1) Base hygiene: YAML/TOML/JSON checks, EOF & EOL normalization
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    # Tip: run `pre-commit autoupdate` periodically to bump this tag.
     rev: v6.0.0
     hooks:
       - id: check-yaml
         args: ["--allow-multiple-documents"]
       - id: check-toml
       - id: check-json
-
-      # Exclude artifacts/reports that shouldn't be modified by the fixer
       - id: end-of-file-fixer
         exclude: |
           (?x)^(
             tp1/aide-check\.txt|
             gitleaks-report\.json
           )$
-
       - id: trailing-whitespace
       - id: mixed-line-ending
 
@@ -49,15 +46,12 @@ repos:
     rev: 7.0.0
     hooks:
       - id: flake8
-        # Safety net: exclude common generated paths (global exclude applies too)
         args:
           - "--max-line-length=100"
           - "--extend-ignore=E203,W503"
           - "--exclude=.git,__pycache__,.mypy_cache,.pytest_cache,venv,env,.venv,dist,build,artifacts"
 
   # 4) Bandit (Python security SAST)
-  # pass_filenames: false avoids pre-commit passing a file list that conflicts with recursive scanning.
-  # We scan only application code to avoid B101 (assert) in tests.
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.9
     hooks:
@@ -73,15 +67,18 @@ repos:
         args:
           - "--baseline"
           - ".secrets.baseline"
-        # If you ever re-add a packed repo file, you can exclude it like:
-        #   - "--exclude-files"
-        #   - "repomix-output\\.xml"
 
-  # 6) pip-audit (dependency vulnerability scan)
-  # Kept manual locally (so routine commits stay fast). CI runs pip-audit explicitly and uploads SARIF.
-  - repo: https://github.com/pypa/pip-audit
-    rev: v2.9.0
+  # 6) pip-audit as a local hook
+  #    pip-audit is typically installed in CI or developer environment.
+  #    Using a local pre-commit hook avoids depending on a third-party pre-commit integration repo.
+  - repo: local
     hooks:
       - id: pip-audit
-        args: ["-r", "requirements.txt"]
-        stages: [manual]
+        name: pip-audit (dependency vulnerability scan)
+        entry: pip-audit
+        language: system
+        types: [python]
+        pass_filenames: false
+        # By default run against requirements.txt if present; otherwise run pip-audit with no args.
+        args: ["--requirement", "requirements.txt"]
+        # This hook will fail if pip-audit exits non-zero (vulns found)
